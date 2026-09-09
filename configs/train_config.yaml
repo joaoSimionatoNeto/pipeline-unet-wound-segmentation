@@ -1,0 +1,178 @@
+# =============================================================================
+# Configuração Central de Treinamento - Segmentação de Feridas
+# =============================================================================
+# Este arquivo controla TODOS os hiperparâmetros e comportamentos das quatro
+# pipelines de treinamento. Caminhos são sempre relativos à raiz do projeto.
+# =============================================================================
+
+projeto:
+  nome: "wound_segmentation"
+  seed: 42
+  dispositivo: "auto"          # opções: auto | cpu | cuda | mps
+
+caminhos:
+  # Imagens QUE POSSUEM máscara de segmentação (únicas utilizadas no treino).
+  imagens_com_mascara: "data/com_mascara/imagens"
+  mascaras: "data/com_mascara/mascaras"
+  # Imagens SEM máscara (não utilizadas no treino atual; reservadas para
+  # uso futuro, ex.: geração de pseudo-rótulos ou aprendizado semi-supervisionado).
+  imagens_sem_mascara: "data/sem_mascara/imagens"
+  # Cache opcional de imagens já pré-processadas (gerado automaticamente).
+  imagens_processadas: "data/processed"
+  checkpoints: "checkpoints"
+  logs: "logs"
+  resultados: "results"
+
+dados:
+  extensao_imagem: ".png"
+  extensao_mascara: ".png"
+  proporcao_treino: 0.70
+  proporcao_validacao: 0.15
+  proporcao_teste: 0.15
+  estratificar_por: null       # ex: "tipo_ferida" (coluna de um CSV de metadados)
+  arquivo_metadados: null      # CSV opcional com colunas [arquivo, tipo_ferida, tom_pele]
+
+pipelines:
+  # Pipeline 1: U-Net + ResNet-50 (transfer learning)
+  unet_resnet50:
+    ativo: true
+    encoder: "resnet50"
+    encoder_pretrained: true
+    fine_tuning: true
+    usar_opencv: false
+    diretorio_experimento: "experiments/unet_resnet50"
+
+  # Pipeline 2: U-Net clássica (do zero)
+  unet:
+    ativo: true
+    canais_base: 64
+    profundidade: 4
+    usar_opencv: false
+    diretorio_experimento: "experiments/unet"
+
+  # Pipeline 3: OpenCV + U-Net + ResNet-50
+  unet_resnet50_opencv:
+    ativo: true
+    encoder: "resnet50"
+    encoder_pretrained: true
+    fine_tuning: true
+    usar_opencv: true
+    diretorio_experimento: "experiments/unet_resnet50_opencv"
+
+  # Pipeline 4: OpenCV + U-Net clássica
+  unet_opencv:
+    ativo: true
+    canais_base: 64
+    profundidade: 4
+    usar_opencv: true
+    diretorio_experimento: "experiments/unet_opencv"
+
+pre_processamento_opencv:
+  redimensionar:
+    ativo: true
+    tamanho: [512, 512]
+  equalizacao_histograma:
+    ativo: false
+  clahe:
+    ativo: true
+    clip_limit: 2.0
+    tile_grid_size: [8, 8]
+  remocao_ruido_gaussiano:
+    ativo: true
+    kernel_size: 5
+  filtro_mediano:
+    ativo: false
+    kernel_size: 5
+  ajuste_contraste:
+    ativo: false
+    alpha: 1.2
+    beta: 10
+  conversao_espaco_cor:
+    ativo: false
+    destino: "LAB"           # opções: LAB | HSV | GRAY
+  normalizacao:
+    ativo: true
+    media: [0.485, 0.456, 0.406]
+    desvio_padrao: [0.229, 0.224, 0.225]
+  sharpening:
+    ativo: false
+  correcao_iluminacao:
+    ativo: true
+
+data_augmentation:
+  ativo: true
+  horizontal_flip:
+    ativo: true
+    probabilidade: 0.5
+  vertical_flip:
+    ativo: true
+    probabilidade: 0.5
+  rotation:
+    ativo: true
+    limite_graus: 30
+    probabilidade: 0.5
+  shift_scale_rotate:
+    ativo: true
+    shift_limit: 0.0625
+    scale_limit: 0.1
+    rotate_limit: 15
+    probabilidade: 0.5
+  random_brightness_contrast:
+    ativo: true
+    probabilidade: 0.4
+  clahe:
+    ativo: true
+    probabilidade: 0.3
+  gaussian_noise:
+    ativo: true
+    probabilidade: 0.2
+  blur:
+    ativo: true
+    probabilidade: 0.2
+  elastic_transform:
+    ativo: true
+    probabilidade: 0.2
+  grid_distortion:
+    ativo: true
+    probabilidade: 0.2
+
+treinamento:
+  batch_size: 16
+  epochs: 2
+  learning_rate: 0.0001
+  optimizer: "adamw"           # opções: adam | adamw | sgd
+  weight_decay: 0.00001
+  loss: "dice_bce"             # opções: bce | dice | dice_bce | focal | tversky
+  image_size: 512
+  num_workers: 4
+  mixed_precision: true
+  gradient_clipping:
+    ativo: true
+    max_norm: 1.0
+  early_stopping:
+    ativo: true
+    paciencia: 15
+    metrica_monitorada: "val_dice"
+    modo: "max"
+  lr_scheduler:
+    tipo: "reduce_on_plateau"  # opções: reduce_on_plateau | cosine | step
+    paciencia: 5
+    fator: 0.5
+  checkpoint:
+    salvar_melhor: true
+    salvar_ultimo: true
+    metrica_monitorada: "val_dice"
+
+perdas:
+  focal:
+    alpha: 0.8
+    gamma: 2.0
+  tversky:
+    alpha: 0.5
+    beta: 0.5
+
+avaliacao:
+  limiar_binarizacao: 0.5
+  salvar_predicoes: true
+  gerar_matriz_confusao: true
+  gerar_graficos_comparativos: true

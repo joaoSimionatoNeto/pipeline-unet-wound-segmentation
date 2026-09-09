@@ -1,0 +1,3 @@
+2026-08-13 21:57:56 | trainer.unet_opencv | INFO | Iniciando treinamento da pipeline 'unet_opencv' por até 2 épocas.
+2026-08-13 21:59:19 | trainer.unet_opencv | INFO | Época 1/2 | loss_treino=0.8517 loss_val=0.8581 | dice_treino=0.0148 dice_val=0.0227 | iou_val=0.0115 | lr=1.00e-04 | tempo=82.7s
+2026-08-13 22:00:38 | trainer.unet_opencv | INFO | Época 2/2 | loss_treino=0.8356 loss_val=0.8569 | dice_treino=0.0129 dice_val=0.0227 | iou_val=0.0115 | lr=1.00e-04 | tempo=79.4s

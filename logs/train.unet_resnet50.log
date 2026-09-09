@@ -1,0 +1,3 @@
+2026-08-13 21:54:46 | train.unet_resnet50 | INFO | === Iniciando pipeline: unet_resnet50 ===
+2026-08-13 21:54:46 | train.unet_resnet50 | INFO | Dispositivo selecionado: cpu
+2026-08-13 21:57:56 | train.unet_resnet50 | INFO | === Pipeline 'unet_resnet50' concluída. ===

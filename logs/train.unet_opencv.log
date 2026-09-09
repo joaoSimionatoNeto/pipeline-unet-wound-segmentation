@@ -1,0 +1,3 @@
+2026-08-13 21:57:56 | train.unet_opencv | INFO | === Iniciando pipeline: unet_opencv ===
+2026-08-13 21:57:56 | train.unet_opencv | INFO | Dispositivo selecionado: cpu
+2026-08-13 22:00:40 | train.unet_opencv | INFO | === Pipeline 'unet_opencv' concluída. ===

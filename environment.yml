@@ -1,0 +1,32 @@
+name: wound-segmentation
+
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+  - pip
+
+  # PyTorch com CUDA 12.1 para execucao em GPU NVIDIA.
+  - pytorch=2.2.2
+  - torchvision=0.17.2
+  - pytorch-cuda=12.1
+
+  # Dependencias disponiveis diretamente no Conda.
+  - opencv=4.9.*
+  - numpy=1.26.*
+  - pandas=2.2.*
+  - scikit-learn=1.4.*
+  - matplotlib=3.8.*
+  - seaborn=0.13.*
+  - pillow=10.2.*
+  - pyyaml=6.0.*
+  - tqdm=4.66.*
+
+  - pip:
+      - albumentations>=1.4.0
+      - segmentation-models-pytorch>=0.3.3
+      - tensorboard>=2.16.0
