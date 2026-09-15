@@ -31,7 +31,7 @@ from preprocessing.opencv_pipeline import ConfiguracaoPreProcessamento
 from training.losses import obter_funcao_perda
 from training.trainer import Trainer
 from utils.logger import criar_logger
-from utils.seed import detectar_dispositivo, fixar_seed_global
+from utils.seed import determinar_batch_size_disponivel, detectar_dispositivo, fixar_seed_global
 from utils.visualization import plotar_curva_learning_rate, plotar_curva_treinamento
 
 NOMES_PIPELINES = ["unet", "unet_resnet50", "unet_opencv", "unet_resnet50_opencv"]
@@ -123,7 +123,14 @@ def executar_pipeline(nome_pipeline: str, config: Dict[str, Any], caminho_retoma
 
     dataset_treino, dataset_validacao, _ = construir_datasets(config, usar_opencv=config_pipeline["usar_opencv"])
 
-    batch_size = config["treinamento"]["batch_size"]
+    batch_size_configurado = int(config["treinamento"]["batch_size"])
+    batch_size = determinar_batch_size_disponivel(
+        batch_size_configurado, dispositivo, int(config["treinamento"]["image_size"])
+    )
+    if batch_size != batch_size_configurado:
+        logger.warning(
+            f"Batch reduzido de {batch_size_configurado} para {batch_size} devido à memória livre da GPU."
+        )
     num_workers = config["treinamento"]["num_workers"]
 
     pin_memory = dispositivo.type == "cuda"

@@ -312,5 +312,3 @@ Todas as pipelines fixam seed global (`utils/seed.py::fixar_seed_global`) e
 salvam, junto a cada experimento, a configuração completa utilizada
 (`experiments/<pipeline>/configuracao_utilizada.json`), garantindo que os
 resultados possam ser reproduzidos.
-
-

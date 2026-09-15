@@ -1,14 +1,19 @@
-torch>=2.2.0
-torchvision>=0.17.0
-opencv-python>=4.9.0
-numpy>=1.26.0
-pandas>=2.2.0
-scikit-learn>=1.4.0
-matplotlib>=3.8.0
-seaborn>=0.13.0
-albumentations>=1.4.0
-tensorboard>=2.16.0
-tqdm>=4.66.0
-PyYAML>=6.0.1
-segmentation-models-pytorch>=0.3.3
-Pillow>=10.2.0
+# A TITAN Xp (Pascal, compute capability 6.1) usa a build CUDA 11.8.
+# O driver NVIDIA 535.309.01 e compativel com CUDA 11.8.
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.5.1+cu118
+torchvision==0.20.1+cu118
+torchaudio==2.5.1+cu118
+
+opencv-python>=4.9.0,<5.0.0
+numpy>=1.26.0,<2.0.0
+pandas>=2.2.0,<3.0.0
+scikit-learn>=1.4.0,<2.0.0
+matplotlib>=3.8.0,<4.0.0
+seaborn>=0.13.0,<1.0.0
+albumentations>=1.4.0,<2.0.0
+tensorboard>=2.16.0,<3.0.0
+tqdm>=4.66.0,<5.0.0
+PyYAML>=6.0.1,<7.0.0
+segmentation-models-pytorch>=0.3.3,<1.0.0
+Pillow>=10.2.0,<12.0.0

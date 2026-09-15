@@ -137,7 +137,7 @@ data_augmentation:
     probabilidade: 0.2
 
 treinamento:
-  batch_size: 16
+  batch_size: 16               # limite superior; e reduzido automaticamente na GPU
   epochs: 2
   learning_rate: 0.0001
   optimizer: "adamw"           # opções: adam | adamw | sgd

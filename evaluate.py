@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from evaluation.evaluator import Evaluator, gerar_relatorio_comparativo
 from train import NOMES_PIPELINES, carregar_configuracao, construir_datasets, construir_modelo
 from utils.logger import criar_logger
-from utils.seed import detectar_dispositivo, fixar_seed_global
+from utils.seed import determinar_batch_size_disponivel, detectar_dispositivo, fixar_seed_global
 from utils.visualization import plotar_comparacao_modelos
 
 import torch
@@ -43,9 +43,12 @@ def avaliar_pipeline(nome_pipeline: str, config: Dict[str, Any]) -> Dict[str, fl
     dispositivo = detectar_dispositivo(config["projeto"]["dispositivo"])
 
     _, _, dataset_teste = construir_datasets(config, usar_opencv=config_pipeline["usar_opencv"])
+    batch_size = determinar_batch_size_disponivel(
+        int(config["treinamento"]["batch_size"]), dispositivo, int(config["treinamento"]["image_size"])
+    )
     loader_teste = DataLoader(
         dataset_teste,
-        batch_size=config["treinamento"]["batch_size"],
+        batch_size=batch_size,
         shuffle=False,
         num_workers=config["treinamento"]["num_workers"],
     )
