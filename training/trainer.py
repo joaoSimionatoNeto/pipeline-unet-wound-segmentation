@@ -121,7 +121,7 @@ class Trainer:
         self.scheduler = self._construir_scheduler()
 
         self.usar_mixed_precision = bool(self.config.get("mixed_precision", True)) and dispositivo.type == "cuda"
-        self.scaler = torch.cuda.amp.GradScaler(enabled=self.usar_mixed_precision)
+        self.scaler = torch.amp.GradScaler("cuda", enabled=self.usar_mixed_precision)
 
         config_clip = self.config.get("gradient_clipping", {})
         self.gradient_clipping_ativo = bool(config_clip.get("ativo", True))
@@ -233,7 +233,7 @@ class Trainer:
             mascaras = mascaras.to(self.dispositivo, non_blocking=True)
 
             with torch.set_grad_enabled(treinando):
-                with torch.cuda.amp.autocast(enabled=self.usar_mixed_precision):
+                with torch.amp.autocast("cuda", enabled=self.usar_mixed_precision):
                     logits = self.modelo(imagens)
                     perda = self.funcao_perda(logits, mascaras)
 

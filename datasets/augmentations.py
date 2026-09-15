@@ -47,10 +47,19 @@ def construir_pipeline_augmentation(config_augmentation: Dict[str, Any]) -> A.Co
 
     if ativo("shift_scale_rotate"):
         transformacoes.append(
-            A.ShiftScaleRotate(
-                shift_limit=parametro("shift_scale_rotate", "shift_limit", 0.0625),
-                scale_limit=parametro("shift_scale_rotate", "scale_limit", 0.1),
-                rotate_limit=parametro("shift_scale_rotate", "rotate_limit", 15),
+            A.Affine(
+                translate_percent=(
+                    -parametro("shift_scale_rotate", "shift_limit", 0.0625),
+                    parametro("shift_scale_rotate", "shift_limit", 0.0625),
+                ),
+                scale=(
+                    1 - parametro("shift_scale_rotate", "scale_limit", 0.1),
+                    1 + parametro("shift_scale_rotate", "scale_limit", 0.1),
+                ),
+                rotate=(
+                    -parametro("shift_scale_rotate", "rotate_limit", 15),
+                    parametro("shift_scale_rotate", "rotate_limit", 15),
+                ),
                 p=parametro("shift_scale_rotate", "probabilidade", 0.5),
             )
         )

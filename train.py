@@ -126,8 +126,13 @@ def executar_pipeline(nome_pipeline: str, config: Dict[str, Any]) -> None:
     batch_size = config["treinamento"]["batch_size"]
     num_workers = config["treinamento"]["num_workers"]
 
-    loader_treino = DataLoader(dataset_treino, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
-    loader_validacao = DataLoader(dataset_validacao, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
+    pin_memory = dispositivo.type == "cuda"
+    loader_treino = DataLoader(
+        dataset_treino, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=pin_memory
+    )
+    loader_validacao = DataLoader(
+        dataset_validacao, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory
+    )
 
     modelo = construir_modelo(nome_pipeline, config_pipeline)
     funcao_perda = obter_funcao_perda(config["treinamento"]["loss"], config.get("perdas", {}))

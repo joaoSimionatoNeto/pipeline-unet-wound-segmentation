@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import random
+import warnings
 
 import numpy as np
 import torch
@@ -54,7 +55,15 @@ def detectar_dispositivo(preferencia: str = "auto") -> torch.device:
     if preferencia != "auto":
         return torch.device(preferencia)
 
-    if torch.cuda.is_available():
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"CUDA initialization: The NVIDIA driver.*",
+            category=UserWarning,
+        )
+        cuda_disponivel = torch.cuda.is_available()
+
+    if cuda_disponivel:
         return torch.device("cuda")
     if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
         return torch.device("mps")
