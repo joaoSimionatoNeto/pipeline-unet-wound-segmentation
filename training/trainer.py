@@ -135,6 +135,35 @@ class Trainer:
 
         self.historico = HistoricoTreinamento()
 
+    def carregar_checkpoint(self, caminho_checkpoint: str | Path) -> int:
+        """Carrega o estado do treinamento e retorna a próxima época."""
+        caminho = Path(caminho_checkpoint)
+        if not caminho.exists():
+            raise FileNotFoundError(f"Checkpoint de retomada não encontrado: {caminho}")
+
+        checkpoint = torch.load(caminho, map_location=self.dispositivo)
+        self.modelo.load_state_dict(checkpoint["modelo_state_dict"])
+        if "otimizador_state_dict" in checkpoint:
+            self.otimizador.load_state_dict(checkpoint["otimizador_state_dict"])
+        if "scheduler_state_dict" in checkpoint:
+            self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        if "scaler_state_dict" in checkpoint:
+            self.scaler.load_state_dict(checkpoint["scaler_state_dict"])
+
+        estado_early_stopping = checkpoint.get("early_stopping")
+        if estado_early_stopping:
+            self.early_stopping.contador = estado_early_stopping.get("contador", 0)
+            self.early_stopping.melhor_valor = estado_early_stopping.get("melhor_valor")
+            self.early_stopping.deve_parar = estado_early_stopping.get("deve_parar", False)
+
+        estado_historico = checkpoint.get("historico")
+        if estado_historico:
+            self.historico = HistoricoTreinamento(**estado_historico)
+
+        epoca = int(checkpoint.get("epoca", 0))
+        self.logger.info(f"Checkpoint carregado: {caminho} (última época: {epoca}).")
+        return epoca + 1
+
     def _construir_otimizador(self) -> torch.optim.Optimizer:
         """Constrói o otimizador de acordo com a configuração ('adam', 'adamw' ou 'sgd')."""
         nome_otimizador = str(self.config.get("optimizer", "adamw")).lower()
@@ -168,7 +197,12 @@ class Trainer:
             factor=float(config_scheduler.get("fator", 0.5)),
         )
 
-    def treinar(self, loader_treino: DataLoader, loader_validacao: DataLoader) -> HistoricoTreinamento:
+    def treinar(
+        self,
+        loader_treino: DataLoader,
+        loader_validacao: DataLoader,
+        epoca_inicial: int = 1,
+    ) -> HistoricoTreinamento:
         """Executa o loop completo de treinamento até o número de épocas ou early stopping.
 
         Args:
@@ -181,7 +215,7 @@ class Trainer:
         epochs = int(self.config.get("epochs", 100))
         self.logger.info(f"Iniciando treinamento da pipeline '{self.nome_experimento}' por até {epochs} épocas.")
 
-        for epoca in range(1, epochs + 1):
+        for epoca in range(epoca_inicial, epochs + 1):
             inicio = time.time()
 
             perda_treino, dice_treino, iou_treino = self._executar_epoca(loader_treino, treinando=True)
@@ -287,6 +321,22 @@ class Trainer:
             "epoca": epoca,
             "modelo_state_dict": self.modelo.state_dict(),
             "otimizador_state_dict": self.otimizador.state_dict(),
+            "scheduler_state_dict": self.scheduler.state_dict(),
+            "scaler_state_dict": self.scaler.state_dict(),
+            "early_stopping": {
+                "contador": self.early_stopping.contador,
+                "melhor_valor": self.early_stopping.melhor_valor,
+                "deve_parar": self.early_stopping.deve_parar,
+            },
+            "historico": {
+                "perda_treino": self.historico.perda_treino,
+                "perda_validacao": self.historico.perda_validacao,
+                "dice_treino": self.historico.dice_treino,
+                "dice_validacao": self.historico.dice_validacao,
+                "iou_treino": self.historico.iou_treino,
+                "iou_validacao": self.historico.iou_validacao,
+                "learning_rates": self.historico.learning_rates,
+            },
             "dice_validacao": dice_validacao,
         }
 

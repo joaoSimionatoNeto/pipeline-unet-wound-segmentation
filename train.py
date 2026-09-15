@@ -107,7 +107,7 @@ def construir_datasets(
     return dataset_treino, dataset_validacao, dataset_teste
 
 
-def executar_pipeline(nome_pipeline: str, config: Dict[str, Any]) -> None:
+def executar_pipeline(nome_pipeline: str, config: Dict[str, Any], caminho_retomada: str | None = None) -> None:
     """Executa o ciclo completo de treinamento de uma pipeline específica."""
     logger = criar_logger(f"train.{nome_pipeline}", config["caminhos"]["logs"])
     config_pipeline = config["pipelines"][nome_pipeline]
@@ -150,7 +150,11 @@ def executar_pipeline(nome_pipeline: str, config: Dict[str, Any]) -> None:
     diretorio_experimento = config_pipeline["diretorio_experimento"]
     treinador.salvar_configuracao_experimento(config, diretorio_experimento)
 
-    historico = treinador.treinar(loader_treino, loader_validacao)
+    epoca_inicial = 1
+    if caminho_retomada:
+        epoca_inicial = treinador.carregar_checkpoint(caminho_retomada)
+
+    historico = treinador.treinar(loader_treino, loader_validacao, epoca_inicial=epoca_inicial)
 
     diretorio_graficos = Path(config["caminhos"]["resultados"]) / nome_pipeline
     plotar_curva_treinamento(
@@ -181,6 +185,16 @@ def main() -> None:
         choices=NOMES_PIPELINES + ["todas"],
         help="Pipeline específica a treinar, ou 'todas' para treinar as quatro sequencialmente.",
     )
+    parser.add_argument(
+        "--retomar",
+        action="store_true",
+        help="Retoma a pipeline a partir do checkpoint *_last.pth.",
+    )
+    parser.add_argument(
+        "--checkpoint-retomada",
+        type=str,
+        help="Caminho de um checkpoint específico para retomada. Implica --retomar.",
+    )
     argumentos = parser.parse_args()
 
     config = carregar_configuracao(argumentos.config)
@@ -189,7 +203,10 @@ def main() -> None:
     pipelines_a_executar = NOMES_PIPELINES if argumentos.pipeline == "todas" else [argumentos.pipeline]
 
     for nome_pipeline in pipelines_a_executar:
-        executar_pipeline(nome_pipeline, config)
+        caminho_retomada = argumentos.checkpoint_retomada
+        if argumentos.retomar and caminho_retomada is None:
+            caminho_retomada = str(Path(config["caminhos"]["checkpoints"]) / f"{nome_pipeline}_last.pth")
+        executar_pipeline(nome_pipeline, config, caminho_retomada=caminho_retomada)
 
 
 if __name__ == "__main__":

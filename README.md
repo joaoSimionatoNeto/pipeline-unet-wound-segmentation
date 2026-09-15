@@ -209,7 +209,18 @@ python train.py --config configs/train_config.yaml
 
 # Treinar apenas uma pipeline específica
 python train.py --config configs/train_config.yaml --pipeline unet_resnet50
+
+# Retomar uma pipeline a partir do último checkpoint salvo
+python train.py --config configs/train_config.yaml --pipeline unet_resnet50 --retomar
+
+# Retomar usando um checkpoint específico
+python train.py --config configs/train_config.yaml --pipeline unet_resnet50 --checkpoint-retomada checkpoints/unet_resnet50_last.pth
 ```
+
+Ao retomar, são restaurados os pesos do modelo, o otimizador, o scheduler,
+mixed precision, early stopping e o histórico de métricas. A retomada ocorre
+na época seguinte à última época concluída e só é possível a partir de um
+checkpoint salvo ao final de uma época.
 
 O dispositivo (CPU / CUDA / MPS) é detectado automaticamente
 (`utils/seed.py::detectar_dispositivo`).
