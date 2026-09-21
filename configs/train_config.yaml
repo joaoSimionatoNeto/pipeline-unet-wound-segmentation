@@ -137,7 +137,12 @@ data_augmentation:
     probabilidade: 0.2
 
 treinamento:
-  batch_size: 16               # limite superior; e reduzido automaticamente na GPU
+  batch_size: 1                # micro-batch por passo de GPU; limite superior,
+                                # e reduzido automaticamente conforme memória livre
+  gradient_accumulation:
+    ativo: true
+    accum_steps: 8              # otimizador atualiza os pesos a cada 8 imagens
+                                 # processadas (batch efetivo = batch_size * accum_steps)
   epochs: 2
   learning_rate: 0.0001
   optimizer: "adamw"           # opções: adam | adamw | sgd
@@ -145,7 +150,8 @@ treinamento:
   loss: "dice_bce"             # opções: bce | dice | dice_bce | focal | tversky
   image_size: 512
   num_workers: 4
-  mixed_precision: true
+  mixed_precision: true         # torch.amp (autocast + GradScaler); reduz uso de
+                                 # memória e permite maior resolução/mais acumulações
   gradient_clipping:
     ativo: true
     max_norm: 1.0

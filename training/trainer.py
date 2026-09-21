@@ -133,6 +133,16 @@ class Trainer:
             modo=str(config_early_stopping.get("modo", "max")),
         )
 
+        config_acumulacao = self.config.get("gradient_accumulation", {})
+        acumulacao_ativa = bool(config_acumulacao.get("ativo", True))
+        self.accum_steps = int(config_acumulacao.get("accum_steps", 1)) if acumulacao_ativa else 1
+        self.accum_steps = max(1, self.accum_steps)
+        if self.accum_steps > 1:
+            self.logger.info(
+                f"Acumulação de gradientes ativa: {self.accum_steps} passos "
+                "(o otimizador atualiza os pesos a cada N imagens processadas)."
+            )
+
         self.historico = HistoricoTreinamento()
 
     def carregar_checkpoint(self, caminho_checkpoint: str | Path) -> int:
@@ -251,18 +261,40 @@ class Trainer:
         return self.historico
 
     def _executar_epoca(self, loader: DataLoader, treinando: bool) -> tuple[float, float, float]:
-        """Executa uma época completa de treino ou validação."""
+        """Executa uma época completa de treino ou validação.
+
+        Durante o treino, os pesos não são atualizados a cada batch: a GPU
+        processa um micro-batch (tipicamente uma única imagem) por vez, e o
+        gradiente é acumulado ao longo de `self.accum_steps` micro-batches
+        antes do otimizador dar um passo. Isso simula um batch efetivo maior
+        (batch_size do DataLoader × accum_steps) sem nunca manter os mapas de
+        ativação de todas essas imagens simultaneamente em memória — ao
+        contrário de um batch real do mesmo tamanho, que precisaria manter
+        as ativações de todas as imagens ao mesmo tempo para o backward.
+
+        O loss de cada micro-batch é dividido por `accum_steps` antes do
+        backward: como os gradientes se somam a cada `.backward()`, isso
+        garante que o gradiente acumulado ao final da janela seja equivalente
+        à média do gradiente sobre `accum_steps` imagens (e não `accum_steps`
+        vezes maior, o que distorceria a magnitude do passo de otimização).
+        """
         self.modelo.train(mode=treinando)
+
+        accum_steps = self.accum_steps if treinando else 1
 
         perda_acumulada = 0.0
         dice_acumulado = 0.0
         iou_acumulado = 0.0
         numero_batches = max(len(loader), 1)
+        total_batches = len(loader)
 
         descricao = "Treino" if treinando else "Validação"
         barra_progresso = tqdm(loader, desc=descricao, leave=False)
 
-        for imagens, mascaras in barra_progresso:
+        if treinando:
+            self.otimizador.zero_grad(set_to_none=True)
+
+        for indice_batch, (imagens, mascaras) in enumerate(barra_progresso):
             imagens = imagens.to(self.dispositivo, non_blocking=True)
             mascaras = mascaras.to(self.dispositivo, non_blocking=True)
 
@@ -272,17 +304,28 @@ class Trainer:
                     perda = self.funcao_perda(logits, mascaras)
 
                 if treinando:
-                    self.otimizador.zero_grad(set_to_none=True)
-                    self.scaler.scale(perda).backward()
+                    # Divide o loss pelo número de passos de acumulação ANTES do
+                    # backward: sem isso, o gradiente acumulado ficaria
+                    # `accum_steps` vezes maior do que deveria.
+                    perda_normalizada = perda / accum_steps
+                    self.scaler.scale(perda_normalizada).backward()
 
-                    if self.gradient_clipping_ativo:
-                        self.scaler.unscale_(self.otimizador)
-                        torch.nn.utils.clip_grad_norm_(self.modelo.parameters(), self.gradient_clip_max_norm)
+                    ultimo_batch_da_epoca = (indice_batch + 1) == total_batches
+                    deve_atualizar_pesos = ((indice_batch + 1) % accum_steps == 0) or ultimo_batch_da_epoca
 
-                    self.scaler.step(self.otimizador)
-                    self.scaler.update()
+                    if deve_atualizar_pesos:
+                        if self.gradient_clipping_ativo:
+                            self.scaler.unscale_(self.otimizador)
+                            torch.nn.utils.clip_grad_norm_(self.modelo.parameters(), self.gradient_clip_max_norm)
+
+                        self.scaler.step(self.otimizador)
+                        self.scaler.update()
+                        self.otimizador.zero_grad(set_to_none=True)
 
             metricas = calcular_metricas(logits.detach(), mascaras)
+            # Reporta o loss "real" (não dividido) para que o valor exibido e
+            # registrado no histórico continue comparável entre configurações
+            # diferentes de accum_steps.
             perda_acumulada += perda.item()
             dice_acumulado += metricas.dice
             iou_acumulado += metricas.iou

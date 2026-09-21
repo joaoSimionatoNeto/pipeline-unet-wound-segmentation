@@ -31,6 +31,7 @@ from preprocessing.opencv_pipeline import ConfiguracaoPreProcessamento
 from training.losses import obter_funcao_perda
 from training.trainer import Trainer
 from utils.logger import criar_logger
+from utils.model_utils import substituir_batchnorm_por_groupnorm
 from utils.seed import determinar_batch_size_disponivel, detectar_dispositivo, fixar_seed_global
 from utils.visualization import plotar_curva_learning_rate, plotar_curva_treinamento
 
@@ -44,19 +45,31 @@ def carregar_configuracao(caminho_config: str) -> Dict[str, Any]:
 
 
 def construir_modelo(nome_pipeline: str, config_pipeline: Dict[str, Any]) -> torch.nn.Module:
-    """Instancia a arquitetura correspondente à pipeline solicitada."""
+    """Instancia a arquitetura correspondente à pipeline solicitada.
+
+    Todas as camadas `BatchNorm2d` (inclusive as do encoder ResNet-50
+    pré-treinado, nas pipelines que o utilizam) são substituídas por
+    `GroupNorm`. Isso é necessário porque, com a acumulação de gradientes
+    processando uma imagem por vez, o batch efetivo por passo de GPU é 1 —
+    e as estatísticas de média/variância do BatchNorm ficam instáveis e
+    pouco representativas nesse regime. O GroupNorm normaliza por amostra
+    e é independente do tamanho do batch, tornando o treinamento estável.
+    """
     if "resnet50" in nome_pipeline:
-        return UNetResNet50(
+        modelo: torch.nn.Module = UNetResNet50(
             canais_saida=1,
             pretrained=config_pipeline.get("encoder_pretrained", True),
             fine_tuning=config_pipeline.get("fine_tuning", True),
         )
-    return UNet(
-        canais_entrada=3,
-        canais_saida=1,
-        canais_base=config_pipeline.get("canais_base", 64),
-        profundidade=config_pipeline.get("profundidade", 4),
-    )
+    else:
+        modelo = UNet(
+            canais_entrada=3,
+            canais_saida=1,
+            canais_base=config_pipeline.get("canais_base", 64),
+            profundidade=config_pipeline.get("profundidade", 4),
+        )
+
+    return substituir_batchnorm_por_groupnorm(modelo)
 
 
 def construir_datasets(
@@ -152,6 +165,10 @@ def executar_pipeline(nome_pipeline: str, config: Dict[str, Any], caminho_retoma
         nome_experimento=nome_pipeline,
         diretorio_checkpoints=config["caminhos"]["checkpoints"],
         diretorio_logs=config["caminhos"]["logs"],
+    )
+    logger.info(
+        f"Batch por passo de GPU: {batch_size} | Passos de acumulação de gradiente: {treinador.accum_steps} | "
+        f"Batch efetivo: {batch_size * treinador.accum_steps}"
     )
 
     diretorio_experimento = config_pipeline["diretorio_experimento"]
