@@ -11,12 +11,12 @@ projeto:
   dispositivo: "auto"          # opções: auto | cpu | cuda | mps
 
 caminhos:
-  # Imagens QUE POSSUEM máscara de segmentação (únicas utilizadas no treino).
-  imagens_com_mascara: "data/com_mascara/imagens"
-  mascaras: "data/com_mascara/mascaras"
-  # Imagens SEM máscara (não utilizadas no treino atual; reservadas para
-  # uso futuro, ex.: geração de pseudo-rótulos ou aprendizado semi-supervisionado).
-  imagens_sem_mascara: "data/sem_mascara/imagens"
+  # Único conjunto consumido pelo treinamento. A avaliação usa data/validacao.
+  imagens_treino: "data/treino/imagens"
+  mascaras_treino: "data/treino/mascaras"
+  # Consumidos somente pelos scripts evaluate.py e evaluate_segmentation.py.
+  imagens_validacao: "data/validacao/imagens"
+  mascaras_validacao: "data/validacao/mascaras"
   # Cache opcional de imagens já pré-processadas (gerado automaticamente).
   imagens_processadas: "data/processed"
   checkpoints: "checkpoints"
@@ -24,7 +24,8 @@ caminhos:
   resultados: "results"
 
 dados:
-  extensao_imagem: ".png"
+  # null permite .jpg, .jpeg e .png no mesmo diretório.
+  extensao_imagem: null
   extensao_mascara: ".png"
   proporcao_treino: 0.70
   proporcao_validacao: 0.15

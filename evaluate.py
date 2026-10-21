@@ -17,8 +17,10 @@ from typing import Any, Dict
 
 from torch.utils.data import DataLoader
 
+from datasets.wound_dataset import WoundDataset, listar_amostras_com_mascara
 from evaluation.evaluator import Evaluator, gerar_relatorio_comparativo
-from train import NOMES_PIPELINES, carregar_configuracao, construir_datasets, construir_modelo
+from preprocessing.opencv_pipeline import ConfiguracaoPreProcessamento
+from train import NOMES_PIPELINES, carregar_configuracao, construir_modelo
 from utils.logger import criar_logger
 from utils.seed import determinar_batch_size_disponivel, detectar_dispositivo, fixar_seed_global
 from utils.visualization import plotar_comparacao_modelos
@@ -42,12 +44,34 @@ def avaliar_pipeline(nome_pipeline: str, config: Dict[str, Any]) -> Dict[str, fl
 
     dispositivo = detectar_dispositivo(config["projeto"]["dispositivo"])
 
-    _, _, dataset_teste = construir_datasets(config, usar_opencv=config_pipeline["usar_opencv"])
+    imagens_validacao, mascaras_validacao = listar_amostras_com_mascara(
+        config["caminhos"]["imagens_validacao"],
+        config["caminhos"]["mascaras_validacao"],
+        extensao=config["dados"]["extensao_imagem"],
+    )
+    if not imagens_validacao:
+        raise RuntimeError(
+            "Nenhuma amostra de validação com máscara foi encontrada. "
+            "Verifique os diretórios 'data/validacao/imagens' e 'data/validacao/mascaras'."
+        )
+    configuracao_opencv = None
+    if config_pipeline["usar_opencv"]:
+        configuracao_opencv = ConfiguracaoPreProcessamento.a_partir_de_dicionario(
+            config["pre_processamento_opencv"]
+        )
+    dataset_validacao = WoundDataset(
+        imagens_validacao,
+        mascaras_validacao,
+        config["treinamento"]["image_size"],
+        None,
+        config_pipeline["usar_opencv"],
+        configuracao_opencv,
+    )
     batch_size = determinar_batch_size_disponivel(
         int(config["treinamento"]["batch_size"]), dispositivo, int(config["treinamento"]["image_size"])
     )
     loader_teste = DataLoader(
-        dataset_teste,
+        dataset_validacao,
         batch_size=batch_size,
         shuffle=False,
         num_workers=config["treinamento"]["num_workers"],

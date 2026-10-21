@@ -118,7 +118,9 @@ class WoundDataset(Dataset):
         return torch.from_numpy(mascara_binaria).unsqueeze(0)
 
 
-def listar_amostras_com_mascara(diretorio_imagens: str, diretorio_mascaras: str, extensao: str = ".png") -> Tuple[List[str], List[str]]:
+def listar_amostras_com_mascara(
+    diretorio_imagens: str, diretorio_mascaras: str, extensao: str | None = ".png"
+) -> Tuple[List[str], List[str]]:
     """Lista apenas as amostras que possuem imagem E máscara correspondentes.
 
     Conforme exigido pelo projeto, a pipeline de treinamento utiliza
@@ -127,7 +129,8 @@ def listar_amostras_com_mascara(diretorio_imagens: str, diretorio_mascaras: str,
     Args:
         diretorio_imagens: Diretório contendo as imagens brutas.
         diretorio_mascaras: Diretório contendo as máscaras de segmentação.
-        extensao: Extensão de arquivo esperada (ex.: ".png").
+        extensao: Extensão de arquivo esperada (ex.: ".png"). Quando None,
+            todas as extensões de arquivo são consideradas.
 
     Returns:
         Tupla (caminhos_imagens, caminhos_mascaras), ordenados e pareados.
@@ -135,14 +138,17 @@ def listar_amostras_com_mascara(diretorio_imagens: str, diretorio_mascaras: str,
     caminho_imagens = Path(diretorio_imagens)
     caminho_mascaras = Path(diretorio_mascaras)
 
-    imagens_disponiveis = sorted(caminho_imagens.glob(f"*{extensao}"))
+    imagens_disponiveis = sorted(
+        caminho_imagens.glob(f"*{extensao}") if extensao else caminho_imagens.iterdir()
+    )
+    mascaras_por_nome = {caminho.stem: caminho for caminho in caminho_mascaras.iterdir() if caminho.is_file()}
 
     caminhos_imagens: List[str] = []
     caminhos_mascaras: List[str] = []
 
     for caminho_imagem in imagens_disponiveis:
-        caminho_mascara_correspondente = caminho_mascaras / caminho_imagem.name
-        if caminho_mascara_correspondente.exists():
+        caminho_mascara_correspondente = mascaras_por_nome.get(caminho_imagem.stem)
+        if caminho_mascara_correspondente is not None:
             caminhos_imagens.append(str(caminho_imagem))
             caminhos_mascaras.append(str(caminho_mascara_correspondente))
 

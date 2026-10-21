@@ -75,20 +75,18 @@ def construir_modelo(nome_pipeline: str, config_pipeline: Dict[str, Any]) -> tor
 def construir_datasets(
     config: Dict[str, Any], usar_opencv: bool
 ) -> tuple[WoundDataset, WoundDataset, WoundDataset]:
-    """Lista as amostras com máscara, realiza a divisão e monta os três datasets."""
+    """Monta os datasets dividindo exclusivamente o conjunto de treino."""
     caminhos_imagens, caminhos_mascaras = listar_amostras_com_mascara(
-        config["caminhos"]["imagens_com_mascara"],
-        config["caminhos"]["mascaras"],
+        config["caminhos"]["imagens_treino"],
+        config["caminhos"]["mascaras_treino"],
         extensao=config["dados"]["extensao_imagem"],
     )
 
     if not caminhos_imagens:
         raise RuntimeError(
-            "Nenhuma amostra com máscara de segmentação foi encontrada. "
-            "Verifique se as imagens estão em 'data/com_mascara/imagens' e as "
-            "máscaras correspondentes (mesmo nome de arquivo) em 'data/com_mascara/mascaras'."
+            "Nenhuma amostra de treino com máscara foi encontrada. "
+            "Verifique os diretórios 'data/treino/imagens' e 'data/treino/mascaras'."
         )
-
     (imagens_treino, mascaras_treino), (imagens_val, mascaras_val), (imagens_teste, mascaras_teste) = dividir_dados(
         caminhos_imagens,
         caminhos_mascaras,
