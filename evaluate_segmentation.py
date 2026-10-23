@@ -10,6 +10,7 @@ import argparse
 import csv
 import json
 import logging
+import math
 import statistics
 from dataclasses import dataclass
 from pathlib import Path
@@ -234,7 +235,10 @@ def _resumo(resultados: Sequence[ResultadoAvaliacao]) -> dict[str, object]:
     resumo: dict[str, object] = {"arquivo": "RESUMO"}
     campos = ("dice", "iou", "acuracia", "precisao", "recall", "especificidade", "f1")
     for campo in campos:
-        valores = [float(getattr(r, campo)) for r in resultados]
+        valores = [
+            valor for resultado in resultados
+            if math.isfinite(valor := float(getattr(resultado, campo)))
+        ]
         resumo[f"{campo}_media"] = statistics.mean(valores) if valores else float("nan")
         resumo[f"{campo}_mediana"] = statistics.median(valores) if valores else float("nan")
         resumo[f"{campo}_desvio_padrao"] = statistics.stdev(valores) if len(valores) > 1 else 0.0
