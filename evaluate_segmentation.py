@@ -127,6 +127,21 @@ def localizar_mascara(caminho_imagem: Path, diretorio_mascaras: str | Path) -> P
     raise FileNotFoundError(f"Máscara manual ausente para {caminho_imagem.name}: {diretorio}")
 
 
+def filtrar_imagens_com_mascara(
+    imagens: Iterable[Path], diretorio_mascaras: str | Path, logger: logging.Logger
+) -> list[Path]:
+    """Retorna somente imagens que possuem máscara manual correspondente."""
+    imagens_com_mascara: list[Path] = []
+    for imagem in imagens:
+        try:
+            localizar_mascara(imagem, diretorio_mascaras)
+        except FileNotFoundError as erro:
+            logger.warning("%s", erro)
+            continue
+        imagens_com_mascara.append(imagem)
+    return imagens_com_mascara
+
+
 def construir_modelo(arquitetura: str, tamanho_base: int = 64, profundidade: int = 4) -> torch.nn.Module:
     if arquitetura == "unet":
         modelo: torch.nn.Module = UNet(3, 1, tamanho_base, profundidade)
@@ -359,6 +374,13 @@ def main() -> None:
     modelo = carregar_modelo(args.weights, args.architecture, dispositivo, args.base_channels, args.depth)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(filename=str(args.output_dir / "evaluation.log"), level=logging.INFO)
+    logger = logging.getLogger("evaluate_segmentation")
+    if args.image is None:
+        imagens = filtrar_imagens_com_mascara(imagens, diretorio_mascaras, logger)
+        if not imagens:
+            raise RuntimeError(
+                f"Nenhuma imagem com máscara correspondente foi encontrada em {diretorio_mascaras}."
+            )
 
     limiar = args.threshold
     if args.find_best_threshold:

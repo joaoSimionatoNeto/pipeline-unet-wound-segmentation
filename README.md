@@ -154,11 +154,12 @@ python evaluate_segmentation.py `
 ```
 
 Para uma imagem use `--image` e `--mask` (a máscara deve possuir o mesmo
-nome). A máscara salva em `predicted_masks/` é binária: fundo `0` e ferida
-`255`. O CSV contém Dice, IoU/Jaccard, acurácia, precisão, recall,
+nome-base). A máscara salva em `predicted_masks/` é binária: fundo `0` e
+ferida `255`. O CSV contém Dice, IoU/Jaccard, acurácia, precisão, recall,
 especificidade, F1, matriz de contagens e áreas, seguido por uma linha de
-resumo com média, mediana e desvio-padrão. Imagens inválidas ou sem máscara
-são registradas no CSV e em `evaluation.log`, sem interromper o lote.
+resumo com média, mediana e desvio-padrão. Em avaliação em lote, imagens sem
+máscara correspondente são ignoradas e registradas como aviso em
+`evaluation.log`, sem interromper a execução.
 
 ### Busca do limiar
 
