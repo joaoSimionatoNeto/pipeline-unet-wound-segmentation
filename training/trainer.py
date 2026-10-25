@@ -307,7 +307,9 @@ class Trainer:
                     # Divide o loss pelo número de passos de acumulação ANTES do
                     # backward: sem isso, o gradiente acumulado ficaria
                     # `accum_steps` vezes maior do que deveria.
-                    perda_normalizada = perda / accum_steps
+                    inicio_janela = (indice_batch // accum_steps) * accum_steps
+                    tamanho_janela = min(accum_steps, total_batches - inicio_janela)
+                    perda_normalizada = perda / tamanho_janela
                     self.scaler.scale(perda_normalizada).backward()
 
                     ultimo_batch_da_epoca = (indice_batch + 1) == total_batches

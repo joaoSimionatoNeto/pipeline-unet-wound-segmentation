@@ -49,7 +49,8 @@ class UNetResNet50(nn.Module):
             é treinado — transfer learning "puro").
     """
 
-    def __init__(self, canais_saida: int = 1, pretrained: bool = True, fine_tuning: bool = True) -> None:
+    def __init__(self, canais_saida: int = 1, pretrained: bool = True, fine_tuning: bool = True,
+                 groupnorm_decoder: bool = True, congelar_batchnorm_encoder: bool = False) -> None:
         super().__init__()
 
         pesos = ResNet50_Weights.IMAGENET1K_V2 if pretrained else None
@@ -79,6 +80,20 @@ class UNetResNet50(nn.Module):
             nn.ReLU(inplace=True),
         )
         self.saida = nn.Conv2d(32, canais_saida, kernel_size=1)
+        self.congelar_batchnorm_encoder = congelar_batchnorm_encoder
+        if groupnorm_decoder:
+            from utils.model_utils import substituir_batchnorm_por_groupnorm
+            for nome in ("decoder4", "decoder3", "decoder2", "decoder1", "conv_final"):
+                substituir_batchnorm_por_groupnorm(getattr(self, nome))
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        if mode and self.congelar_batchnorm_encoder:
+            for stage in (self.estagio0, self.estagio1, self.estagio2, self.estagio3, self.estagio4):
+                for layer in stage.modules():
+                    if isinstance(layer, nn.BatchNorm2d):
+                        layer.eval()
+        return self
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         skip0 = self.estagio0(x)          # /2,  64 canais

@@ -45,6 +45,7 @@ class WoundDataset(Dataset):
         transformacoes: Optional[Callable] = None,
         usar_opencv: bool = False,
         configuracao_opencv: Optional[ConfiguracaoPreProcessamento] = None,
+        normalizar_imagenet: bool = False,
     ) -> None:
         if len(caminhos_imagens) != len(caminhos_mascaras):
             raise ValueError("As listas de imagens e máscaras devem ter o mesmo tamanho.")
@@ -54,6 +55,7 @@ class WoundDataset(Dataset):
         self.tamanho_imagem = tamanho_imagem
         self.transformacoes = transformacoes
         self.usar_opencv = usar_opencv
+        self.normalizar_imagenet = normalizar_imagenet
 
         self.pipeline_opencv: Optional[PipelineOpenCV] = None
         if usar_opencv:
@@ -82,7 +84,15 @@ class WoundDataset(Dataset):
             aumentado = self.transformacoes(image=imagem, mask=mascara)
             imagem, mascara = aumentado["image"], aumentado["mask"]
 
+        if self.normalizar_imagenet:
+            # OpenCV/Albumentations operam em BGR. Converter e normalizar uma vez,
+            # após augmentations, para o padrão do encoder ImageNet.
+            imagem = cv2.cvtColor(imagem, cv2.COLOR_BGR2RGB)
         tensor_imagem = self._converter_imagem_para_tensor(imagem)
+        if self.normalizar_imagenet:
+            media = tensor_imagem.new_tensor([0.485, 0.456, 0.406])[:, None, None]
+            desvio = tensor_imagem.new_tensor([0.229, 0.224, 0.225])[:, None, None]
+            tensor_imagem = (tensor_imagem - media) / desvio
         tensor_mascara = self._converter_mascara_para_tensor(mascara)
 
         return tensor_imagem, tensor_mascara

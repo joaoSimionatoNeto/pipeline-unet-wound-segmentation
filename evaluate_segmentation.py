@@ -143,11 +143,12 @@ def filtrar_imagens_com_mascara(
     return imagens_com_mascara
 
 
-def construir_modelo(arquitetura: str, tamanho_base: int = 64, profundidade: int = 4) -> torch.nn.Module:
+def construir_modelo(arquitetura: str, tamanho_base: int = 64, profundidade: int = 4, batch_size: int = 1) -> torch.nn.Module:
     if arquitetura == "unet":
         modelo: torch.nn.Module = UNet(3, 1, tamanho_base, profundidade)
     elif arquitetura == "unet_resnet50":
-        modelo = UNetResNet50(canais_saida=1, pretrained=False, fine_tuning=True)
+        modelo = UNetResNet50(canais_saida=1, pretrained=False, fine_tuning=True,
+                              groupnorm_decoder=batch_size <= 2, congelar_batchnorm_encoder=batch_size <= 2)
     else:
         raise ValueError(f"Arquitetura desconhecida: {arquitetura}")
     return substituir_batchnorm_por_groupnorm(modelo)
@@ -159,11 +160,12 @@ def carregar_modelo(
     dispositivo: torch.device,
     tamanho_base: int = 64,
     profundidade: int = 4,
+    batch_size: int = 1,
 ) -> torch.nn.Module:
     caminho = Path(caminho_pesos)
     if not caminho.is_file():
         raise FileNotFoundError(f"Arquivo de pesos inexistente: {caminho}")
-    modelo = construir_modelo(arquitetura, tamanho_base, profundidade)
+    modelo = construir_modelo(arquitetura, tamanho_base, profundidade, batch_size)
     checkpoint = torch.load(caminho, map_location=dispositivo)
     estado = checkpoint.get("modelo_state_dict", checkpoint) if isinstance(checkpoint, dict) else checkpoint
     try:
@@ -176,16 +178,24 @@ def carregar_modelo(
     return modelo.to(dispositivo).eval()
 
 
-def _imagem_para_tensor(imagem: np.ndarray, tamanho: int) -> torch.Tensor:
+def _imagem_para_tensor(imagem: np.ndarray, tamanho: int, normalizar_imagenet: bool = False) -> torch.Tensor:
     redimensionada = cv2.resize(imagem, (tamanho, tamanho), interpolation=cv2.INTER_AREA)
-    return torch.from_numpy((redimensionada.astype(np.float32) / 255.0).transpose(2, 0, 1).copy())
+    if normalizar_imagenet:
+        redimensionada = cv2.cvtColor(redimensionada, cv2.COLOR_BGR2RGB)
+    tensor = torch.from_numpy((redimensionada.astype(np.float32) / 255.0).transpose(2, 0, 1).copy())
+    if normalizar_imagenet:
+        media = tensor.new_tensor([0.485, 0.456, 0.406])[:, None, None]
+        desvio = tensor.new_tensor([0.229, 0.224, 0.225])[:, None, None]
+        tensor = (tensor - media) / desvio
+    return tensor
 
 
 @torch.no_grad()
-def predizer_probabilidade(modelo: torch.nn.Module, imagem: np.ndarray, tamanho: int, dispositivo: torch.device) -> np.ndarray:
+def predizer_probabilidade(modelo: torch.nn.Module, imagem: np.ndarray, tamanho: int, dispositivo: torch.device,
+                           normalizar_imagenet: bool = False) -> np.ndarray:
     if imagem is None or imagem.ndim != 3:
         raise ValueError("Imagem inválida ou sem três canais.")
-    tensor = _imagem_para_tensor(imagem, tamanho).unsqueeze(0).to(dispositivo)
+    tensor = _imagem_para_tensor(imagem, tamanho, normalizar_imagenet).unsqueeze(0).to(dispositivo)
     saida = modelo(tensor)
     if isinstance(saida, (tuple, list)):
         saida = saida[0]
@@ -199,12 +209,13 @@ def predizer_probabilidade(modelo: torch.nn.Module, imagem: np.ndarray, tamanho:
 
 @torch.no_grad()
 def predizer_probabilidades(
-    modelo: torch.nn.Module, imagens: Sequence[np.ndarray], tamanho: int, dispositivo: torch.device
+    modelo: torch.nn.Module, imagens: Sequence[np.ndarray], tamanho: int, dispositivo: torch.device,
+    normalizar_imagenet: bool = False
 ) -> list[np.ndarray]:
     """Executa inferência em um batch e restaura cada máscara ao tamanho original."""
     if not imagens:
         return []
-    tensor = torch.stack([_imagem_para_tensor(imagem, tamanho) for imagem in imagens]).to(dispositivo)
+    tensor = torch.stack([_imagem_para_tensor(imagem, tamanho, normalizar_imagenet) for imagem in imagens]).to(dispositivo)
     saida = modelo(tensor)
     if isinstance(saida, (tuple, list)):
         saida = saida[0]
@@ -288,6 +299,7 @@ def avaliar_imagens(
     limiar: float,
     salvar_overlays: bool = True,
     batch_size: int = 1,
+    normalizar_imagenet: bool = False,
 ) -> list[ResultadoAvaliacao]:
     saida = Path(diretorio_saida)
     mascara_dir = saida / "predicted_masks"
@@ -319,7 +331,7 @@ def avaliar_imagens(
                 logger.error("%s: %s", caminho.name, erro)
                 resultados.append(ResultadoAvaliacao(caminho.name, *([float("nan")] * 7), *([0] * 6), str(erro)))
         try:
-            probabilidades = predizer_probabilidades(modelo, imagens_validas, tamanho, dispositivo)
+            probabilidades = predizer_probabilidades(modelo, imagens_validas, tamanho, dispositivo, normalizar_imagenet)
         except (RuntimeError, ValueError) as erro:
             for caminho, _, _ in dados_lote:
                 logger.error("%s: %s", caminho.name, erro)

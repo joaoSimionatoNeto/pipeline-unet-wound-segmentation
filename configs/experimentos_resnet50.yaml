@@ -1,0 +1,41 @@
+project_config: configs/train_config_optuna.yaml
+partitions:
+  root: data/particoes/grid_resnet50
+  seed: 42
+  proportions:
+    train: 0.7
+    validation: 0.15
+    test: 0.15
+experiments:
+- name: b1_a8_dice_bce
+  batch_size: 1
+  accum_steps: 8
+  loss: dice_bce
+- name: b1_a8_tversky
+  batch_size: 1
+  accum_steps: 8
+  loss: tversky
+- name: b2_a4_dice_bce
+  batch_size: 2
+  accum_steps: 4
+  loss: dice_bce
+- name: b2_a4_tversky
+  batch_size: 2
+  accum_steps: 4
+  loss: tversky
+- name: b4_a2_dice_bce
+  batch_size: 4
+  accum_steps: 2
+  loss: dice_bce
+- name: b4_a2_tversky
+  batch_size: 4
+  accum_steps: 2
+  loss: tversky
+- name: b8_a1_dice_bce
+  batch_size: 8
+  accum_steps: 1
+  loss: dice_bce
+- name: b8_a1_tversky
+  batch_size: 8
+  accum_steps: 1
+  loss: tversky

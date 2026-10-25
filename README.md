@@ -479,3 +479,9 @@ Todas as pipelines fixam seed global (`utils/seed.py::fixar_seed_global`) e
 salvam, junto a cada experimento, a configuração completa utilizada
 (`experiments/<pipeline>/configuracao_utilizada.json`), garantindo que os
 resultados possam ser reproduzidos.
+# Experimentos ResNet50 com partições fixas
+
+Prepare as partições uma vez com `python preparar_particoes_resnet50.py`. A matriz executa com `python run_experiments.py` e lê somente `data/particoes/grid_resnet50` (imagens e máscaras); não acessa as pastas originais. Para recriar a divisão, use `python preparar_particoes_resnet50.py --recriar`.
+
+Cada experimento salva configuração, checkpoints, logs, avaliação, threshold calibrado na validação e overlays dos 20 piores casos do teste em sua própria pasta. O ranking usa somente Dice no teste. O processo reduz o batch físico após falhas, elevando a acumulação para preservar o batch efetivo; se falhar também com batch 1, registra `skipped` e continua.
+
