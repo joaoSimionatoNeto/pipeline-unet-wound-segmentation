@@ -124,7 +124,7 @@ def construir_datasets(
         )
 
     tamanho_imagem = config["treinamento"]["image_size"]
-    transformacoes_treino = construir_pipeline_augmentation(config["data_augmentation"])
+    transformacoes_treino = construir_pipeline_augmentation(config["data_augmentation"], tamanho_imagem)
 
     dataset_treino = WoundDataset(
         imagens_treino, mascaras_treino, tamanho_imagem, transformacoes_treino, usar_opencv, configuracao_opencv,

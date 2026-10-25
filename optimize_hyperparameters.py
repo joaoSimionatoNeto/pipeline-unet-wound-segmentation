@@ -64,7 +64,11 @@ def main() -> None:
         treino["batch_size"] = batch
         treino["gradient_accumulation"]["accum_steps"] = accumulation
         normalizar = not config["pipelines"][pipeline_name].get("usar_opencv", False) and config.get("modelo", {}).get("imagenet_normalizacao", False)
-        dataset_train = WoundDataset(train_images, train_masks, treino["image_size"], construir_pipeline_augmentation(augmentation), normalizar_imagenet=normalizar)
+        dataset_train = WoundDataset(
+            train_images, train_masks, treino["image_size"],
+            construir_pipeline_augmentation(augmentation, int(treino["image_size"])),
+            normalizar_imagenet=normalizar,
+        )
         dataset_val = WoundDataset(val_images, val_masks, treino["image_size"], None, normalizar_imagenet=normalizar)
         workers = int(treino.get("num_workers", 0))
         loader_train = DataLoader(dataset_train, batch_size=batch, shuffle=True, num_workers=workers, pin_memory=device.type == "cuda")

@@ -14,7 +14,9 @@ import inspect
 import albumentations as A
 
 
-def construir_pipeline_augmentation(config_augmentation: Dict[str, Any]) -> A.Compose:
+def construir_pipeline_augmentation(
+    config_augmentation: Dict[str, Any], tamanho_referencia: int = 512
+) -> A.Compose:
     """Constrói um `albumentations.Compose` a partir da configuração fornecida.
 
     Args:
@@ -111,17 +113,30 @@ def construir_pipeline_augmentation(config_augmentation: Dict[str, Any]) -> A.Co
             "p": parametro("cutout", "probabilidade", 0.3),
         }
         # Albumentations 1.x usava dimensões em pixels e nomes diferentes.
-        if "num_holes_range" not in inspect.signature(A.CoarseDropout).parameters:
+        assinatura_cutout = inspect.signature(A.CoarseDropout).parameters
+        if "num_holes_range" not in assinatura_cutout:
             n_holes = argumentos_cutout.pop("num_holes_range")
-            altura = argumentos_cutout.pop("hole_height_range")
-            largura = argumentos_cutout.pop("hole_width_range")
+            argumentos_cutout.pop("hole_height_range")
+            argumentos_cutout.pop("hole_width_range")
             argumentos_cutout["min_holes"], argumentos_cutout["max_holes"] = n_holes
             argumentos_cutout["min_height"], argumentos_cutout["max_height"] = (16, 64)
             argumentos_cutout["min_width"], argumentos_cutout["max_width"] = (16, 64)
-            if "fill" in inspect.signature(A.CoarseDropout).parameters:
+            if "fill" in assinatura_cutout:
                 argumentos_cutout["fill_value"] = argumentos_cutout.pop("fill")
             else:
                 argumentos_cutout.pop("fill", None)
+        else:
+            # A API 2.x diferencia intervalos relativos (float) de tamanhos
+            # em pixels (int). Esta configuração usa frações da dimensão da imagem.
+            for chave in ("hole_height_range", "hole_width_range"):
+                intervalo = argumentos_cutout[chave]
+                if all(isinstance(valor, int) for valor in intervalo):
+                    continue
+                # Frações da resolução padrão 512x512 convertidas para pixels.
+                # O Albumentations instalado valida esses campos como >= 1.
+                argumentos_cutout[chave] = tuple(
+                    max(1, round(float(valor) * tamanho_referencia)) for valor in intervalo
+                )
         transformacoes.append(A.CoarseDropout(**argumentos_cutout))
 
     if ativo("elastic_transform"):
