@@ -149,6 +149,9 @@ def construir_modelo(arquitetura: str, tamanho_base: int = 64, profundidade: int
     elif arquitetura == "unet_resnet50":
         modelo = UNetResNet50(canais_saida=1, pretrained=False, fine_tuning=True,
                               groupnorm_decoder=batch_size <= 2, congelar_batchnorm_encoder=batch_size <= 2)
+        # O treinamento mantém BatchNorm no encoder ResNet50. Para batches
+        # pequenos, apenas o decoder é convertido para GroupNorm pelo construtor.
+        return modelo
     else:
         raise ValueError(f"Arquitetura desconhecida: {arquitetura}")
     return substituir_batchnorm_por_groupnorm(modelo)
