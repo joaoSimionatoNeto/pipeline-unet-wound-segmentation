@@ -77,8 +77,19 @@ def avaliar_pipeline(nome_pipeline: str, config: Dict[str, Any]) -> Dict[str, fl
         num_workers=config["treinamento"]["num_workers"],
     )
 
-    modelo = construir_modelo(nome_pipeline, config_pipeline)
     checkpoint = torch.load(caminho_checkpoint, map_location=dispositivo)
+
+    # O treinamento escolhe BatchNorm ou GroupNorm no decoder conforme o
+    # batch size que coube na memória. Recrie essa mesma arquitetura a partir
+    # das chaves persistidas no checkpoint, em vez de assumir o batch padrão.
+    estado_modelo = checkpoint["modelo_state_dict"]
+    decoder_com_batchnorm = any(
+        chave.endswith("running_mean")
+        and chave.split(".")[0] in {"decoder4", "decoder3", "decoder2", "decoder1", "conv_final"}
+        for chave in estado_modelo
+    )
+    batch_size_arquitetura = 3 if decoder_com_batchnorm else 1
+    modelo = construir_modelo(nome_pipeline, config_pipeline, batch_size=batch_size_arquitetura)
     modelo.load_state_dict(checkpoint["modelo_state_dict"])
 
     avaliador = Evaluator(
