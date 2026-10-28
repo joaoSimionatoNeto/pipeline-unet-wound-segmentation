@@ -37,11 +37,23 @@ def construir_pipeline_augmentation(
     def parametro(nome: str, chave: str, padrao: Any) -> Any:
         return config_augmentation.get(nome, {}).get(chave, padrao)
 
+    # O strength escala a intensidade dos ajustes, sem alterar suas
+    # probabilidades. A força 1.0 preserva os limites declarados no YAML.
+    forca = float(config_augmentation.get("augmentation_strength", 1.0))
+
+    def escalar_limite(valor: Any, fator: float) -> Any:
+        if isinstance(valor, (list, tuple)):
+            return type(valor)(float(item) * fator for item in valor)
+        return float(valor) * fator
+
     if ativo("horizontal_flip"):
         transformacoes.append(A.HorizontalFlip(p=parametro("horizontal_flip", "probabilidade", 0.5)))
 
     if ativo("vertical_flip"):
         transformacoes.append(A.VerticalFlip(p=parametro("vertical_flip", "probabilidade", 0.5)))
+
+    if ativo("rotacao_90"):
+        transformacoes.append(A.RandomRotate90(p=parametro("rotacao_90", "probabilidade", 0.5)))
 
     if ativo("rotation"):
         transformacoes.append(
@@ -67,11 +79,40 @@ def construir_pipeline_augmentation(
             )
         )
 
-    if ativo("random_brightness_contrast"):
+    if ativo("random_brightness") or ativo("random_contrast"):
+        brilho_ativo = ativo("random_brightness")
+        contraste_ativo = ativo("random_contrast")
+        if brilho_ativo:
+            transformacoes.append(
+                A.RandomBrightnessContrast(
+                    brightness_limit=escalar_limite(
+                        parametro("random_brightness", "brightness_limit", 0.2), forca
+                    ),
+                    contrast_limit=0,
+                    p=parametro("random_brightness", "probabilidade", 1.0),
+                )
+            )
+        if contraste_ativo:
+            transformacoes.append(
+                A.RandomBrightnessContrast(
+                    brightness_limit=0,
+                    contrast_limit=escalar_limite(
+                        parametro("random_contrast", "contrast_limit", 0.2), forca
+                    ),
+                    p=parametro("random_contrast", "probabilidade", 1.0),
+                )
+            )
+
+    # Compatibilidade com configurações anteriores que agrupavam brilho e contraste.
+    elif ativo("random_brightness_contrast"):
         transformacoes.append(
             A.RandomBrightnessContrast(
-                brightness_limit=parametro("random_brightness_contrast", "brightness_limit", 0.2),
-                contrast_limit=parametro("random_brightness_contrast", "contrast_limit", 0.2),
+                brightness_limit=escalar_limite(
+                    parametro("random_brightness_contrast", "brightness_limit", 0.2), forca
+                ),
+                contrast_limit=escalar_limite(
+                    parametro("random_brightness_contrast", "contrast_limit", 0.2), forca
+                ),
                 p=parametro("random_brightness_contrast", "probabilidade", 0.4),
             )
         )
@@ -139,10 +180,28 @@ def construir_pipeline_augmentation(
                 )
         transformacoes.append(A.CoarseDropout(**argumentos_cutout))
 
+    if ativo("grid_dropout"):
+        transformacoes.append(
+            A.GridDropout(
+                ratio=parametro("grid_dropout", "ratio", 0.3),
+                p=parametro("grid_dropout", "probabilidade", 0.5),
+            )
+        )
+
     if ativo("elastic_transform"):
         transformacoes.append(A.ElasticTransform(p=parametro("elastic_transform", "probabilidade", 0.2)))
 
     if ativo("grid_distortion"):
-        transformacoes.append(A.GridDistortion(p=parametro("grid_distortion", "probabilidade", 0.2)))
+        transformacoes.append(
+            A.GridDistortion(
+                distort_limit=escalar_limite(
+                    parametro("grid_distortion", "distort_limit", 0.3), forca
+                ),
+                p=parametro("grid_distortion", "probabilidade", 0.2),
+            )
+        )
 
-    return A.Compose(transformacoes)
+    # A aplicação a 100% das amostras controla o Compose; cada transformação
+    # ainda respeita sua probabilidade individual.
+    probabilidade_pipeline = 1.0 if config_augmentation.get("aplicar_em_todas_imagens_treino", False) else 0.0
+    return A.Compose(transformacoes, p=probabilidade_pipeline)

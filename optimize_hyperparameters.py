@@ -49,6 +49,16 @@ def main() -> None:
         treino["learning_rate"] = trial.suggest_float("learning_rate", 1e-5, 5e-4, log=True)
         treino["weight_decay"] = trial.suggest_float("weight_decay", 1e-7, 1e-3, log=True)
         treino["loss"] = trial.suggest_categorical("loss", ["dice_bce", "tversky", "focal"])
+        # Search loss-specific parameters only when that loss is selected.
+        perdas = config.setdefault("perdas", {})
+        if treino["loss"] == "focal":
+            focal = perdas.setdefault("focal", {})
+            focal["alpha"] = trial.suggest_float("focal_alpha", 0.1, 1.0)
+            focal["gamma"] = trial.suggest_float("focal_gamma", 0.5, 5.0)
+        elif treino["loss"] == "tversky":
+            tversky = perdas.setdefault("tversky", {})
+            tversky["alpha"] = trial.suggest_float("tversky_alpha", 0.1, 0.9)
+            tversky["beta"] = trial.suggest_float("tversky_beta", 0.1, 0.9)
         treino["batch_size"] = trial.suggest_categorical("batch_size", [1, 2, 4])
         treino["gradient_accumulation"]["accum_steps"] = trial.suggest_categorical("accum_steps", [1, 2, 4, 8])
         augmentation["random_brightness_contrast"]["probabilidade"] = trial.suggest_float("p_brightness_contrast", 0.1, 0.8)
@@ -93,6 +103,14 @@ def main() -> None:
     best = copy.deepcopy(base)
     params = study.best_params
     best["treinamento"].update(learning_rate=params["learning_rate"], weight_decay=params["weight_decay"], loss=params["loss"], batch_size=params["batch_size"])
+    if params["loss"] == "focal" and "focal_alpha" in params:
+        best.setdefault("perdas", {}).setdefault("focal", {}).update(
+            alpha=params["focal_alpha"], gamma=params["focal_gamma"]
+        )
+    elif params["loss"] == "tversky" and "tversky_alpha" in params:
+        best.setdefault("perdas", {}).setdefault("tversky", {}).update(
+            alpha=params["tversky_alpha"], beta=params["tversky_beta"]
+        )
     best["treinamento"]["gradient_accumulation"]["accum_steps"] = params["accum_steps"]
     aug = best["data_augmentation"]
     aug["random_brightness_contrast"]["probabilidade"] = params["p_brightness_contrast"]

@@ -13,14 +13,6 @@ caminhos:
   resultados: results
   imagens_teste: data/particoes/grid_resnet50/test/images
   mascaras_teste: data/particoes/grid_resnet50/test/masks
-dados:
-  extensao_imagem: null
-  extensao_mascara: .png
-  proporcao_treino: 0.7
-  proporcao_validacao: 0.15
-  proporcao_teste: 0.15
-  estratificar_por: null
-  arquivo_metadados: null
 pipelines:
   unet_resnet50:
     ativo: true
@@ -58,7 +50,7 @@ pre_processamento_opencv:
     ativo: false
   clahe:
     ativo: true
-    clip_limit: 2.0
+    clip_limit: 4.0
     tile_grid_size:
     - 8
     - 8
@@ -66,8 +58,8 @@ pre_processamento_opencv:
     ativo: true
     kernel_size: 5
   filtro_mediano:
-    ativo: false
-    kernel_size: 5
+    ativo: true
+    kernel_size: 3
   ajuste_contraste:
     ativo: false
     alpha: 1.2
@@ -91,46 +83,41 @@ pre_processamento_opencv:
     ativo: true
 data_augmentation:
   ativo: true
-  random_brightness_contrast:
+  aplicar_em_todas_imagens_treino: true
+  horizontal_flip:
     ativo: true
-    probabilidade: 0.4
-    brightness_limit: 0.2
-    contrast_limit: 0.2
-  hue_saturation_value:
+    probabilidade: 0.5
+  vertical_flip:
     ativo: true
-    probabilidade: 0.3
-    hue_shift_limit: 10
-    sat_shift_limit: 15
-    val_shift_limit: 10
-  gamma:
+    probabilidade: 0.5
+  rotacao_90:
     ativo: true
-    probabilidade: 0.3
-    limite: [80, 120]
-  clahe:
+    probabilidade: 0.5
+  random_brightness:
     ativo: true
-    probabilidade: 0.3
-  gaussian_noise:
+    brightness_limit: [-0.2274, 0.4548]
+    probabilidade: 0.5
+  random_contrast:
     ativo: true
-    probabilidade: 0.2
-  blur:
+    probabilidade: 0.8
+    contrast_limit: 0.2274
+  grid_distortion:
     ativo: true
-    probabilidade: 0.2
-  cutout:
+    probabilidade: 0.5
+    distort_limit: 0.3411
+  grid_dropout:
     ativo: true
-    probabilidade: 0.3
-    num_holes_range: [1, 8]
-    hole_height_range: [0.02, 0.12]
-    hole_width_range: [0.02, 0.12]
-    fill: 0
+    probabilidade: 0.5
+    ratio: 0.3
+  augmentation_strength: 1.137
 treinamento:
-  batch_size: 2
+  batch_size: 8
   gradient_accumulation:
-    ativo: true
-    accum_steps: 8
+    ativo: false
+    accum_steps: 0
   epochs: 200
   learning_rate: 0.0001
-  optimizer: adamw
-  weight_decay: 1.0e-05
+  optimizer: adam
   loss: dice_bce
   image_size: 512
   num_workers: 4
@@ -146,7 +133,7 @@ treinamento:
   lr_scheduler:
     tipo: reduce_on_plateau
     paciencia: 5
-    fator: 0.5
+    fator: 0.1
   checkpoint:
     salvar_melhor: true
     salvar_ultimo: true
