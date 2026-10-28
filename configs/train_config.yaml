@@ -91,25 +91,44 @@ data_augmentation:
     ativo: true
     probabilidade: 0.5
   rotacao_90:
+    ativo: false
+    probabilidade: 0.5
+  shift_scale_rotate:
     ativo: true
+    shift_limit: 0.25
+    rotate_limit: 180
+    scale_limit: 0.25
+    shear_limit: 17.5
+    probabilidade: 0.5
+  gaussian_blur:
+    ativo: true
+    kernel_size: [25, 25]
+    sigma: [0.001, 2.0]
+    probabilidade: 0.5
+  color_jitter:
+    ativo: true
+    brilho: 0.125
+    contraste: 0.5
+    saturacao: 0.5
+    matiz: 0.05
     probabilidade: 0.5
   random_brightness:
-    ativo: true
-    brightness_limit: [-0.2274, 0.4548]
+    ativo: false
+    brightness_limit: [-0.125, 0.125]
     probabilidade: 0.5
   random_contrast:
-    ativo: true
+    ativo: false
     probabilidade: 0.8
-    contrast_limit: 0.2274
+    contrast_limit: 0.5
   grid_distortion:
-    ativo: true
+    ativo: false
     probabilidade: 0.5
     distort_limit: 0.3411
   grid_dropout:
-    ativo: true
+    ativo: false
     probabilidade: 0.5
     ratio: 0.3
-  augmentation_strength: 1.137
+  augmentation_strength: 1.0
 treinamento:
   batch_size: 8
   gradient_accumulation:
@@ -117,8 +136,8 @@ treinamento:
     accum_steps: 0
   epochs: 200
   learning_rate: 0.0001
-  optimizer: adam
-  loss: dice_bce
+  optimizer: adamw
+  loss: bce
   image_size: 512
   num_workers: 4
   mixed_precision: true
@@ -127,17 +146,16 @@ treinamento:
     max_norm: 1.0
   early_stopping:
     ativo: true
-    paciencia: 15
-    metrica_monitorada: val_dice
+    paciencia: 20
+    delta_minimo: 0.001
+    metrica_monitorada: val_iou
     modo: max
   lr_scheduler:
-    tipo: reduce_on_plateau
-    paciencia: 5
-    fator: 0.1
+    tipo: rex
   checkpoint:
     salvar_melhor: true
     salvar_ultimo: true
-    metrica_monitorada: val_dice
+    metrica_monitorada: val_iou
 perdas:
   focal:
     alpha: 0.8
@@ -155,6 +173,6 @@ avaliacao:
   gerar_graficos_comparativos: true
 optuna:
   pipeline: unet_resnet50
-  epochs_por_trial: 40
+  epochs_por_trial: 120
   diretorio: results/optuna
   config_saida: configs/train_config_optuna.yaml

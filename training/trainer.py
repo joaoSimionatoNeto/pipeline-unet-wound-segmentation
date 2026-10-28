@@ -131,6 +131,7 @@ class Trainer:
         self.early_stopping = EarlyStopping(
             paciencia=int(config_early_stopping.get("paciencia", 15)),
             modo=str(config_early_stopping.get("modo", "max")),
+            delta_minimo=float(config_early_stopping.get("delta_minimo", 1e-4)),
         )
 
         config_acumulacao = self.config.get("gradient_accumulation", {})
@@ -197,6 +198,16 @@ class Trainer:
             return torch.optim.lr_scheduler.CosineAnnealingLR(
                 self.otimizador, T_max=int(self.config.get("epochs", 100))
             )
+        if tipo == "rex":
+            total_epocas = max(1, int(self.config.get("epochs", 100)))
+            return torch.optim.lr_scheduler.LambdaLR(
+                self.otimizador,
+                lr_lambda=lambda epoca: (
+                    1 - min(epoca, total_epocas) / total_epocas
+                ) ** (
+                    0.5 + 0.5 * (1 - min(epoca, total_epocas) / total_epocas)
+                ),
+            )
         if tipo == "step":
             return torch.optim.lr_scheduler.StepLR(self.otimizador, step_size=20, gamma=0.5)
 
@@ -242,7 +253,11 @@ class Trainer:
                 epoca, perda_treino, perda_validacao, dice_treino, dice_validacao, iou_treino, iou_validacao, lr_atual
             )
 
-            houve_melhora = self.early_stopping.atualizar(dice_validacao)
+            metrica_monitorada = str(
+                self.config.get("early_stopping", {}).get("metrica_monitorada", "val_dice")
+            ).lower()
+            valor_monitorado = iou_validacao if metrica_monitorada == "val_iou" else dice_validacao
+            houve_melhora = self.early_stopping.atualizar(valor_monitorado)
             self._salvar_checkpoints(epoca, dice_validacao, eh_melhor=houve_melhora)
 
             duracao = time.time() - inicio

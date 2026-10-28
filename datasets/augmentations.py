@@ -71,11 +71,35 @@ def construir_pipeline_augmentation(
                     1 - parametro("shift_scale_rotate", "scale_limit", 0.1),
                     1 + parametro("shift_scale_rotate", "scale_limit", 0.1),
                 ),
+                shear=(
+                    -parametro("shift_scale_rotate", "shear_limit", 0.0),
+                    parametro("shift_scale_rotate", "shear_limit", 0.0),
+                ),
                 rotate=(
                     -parametro("shift_scale_rotate", "rotate_limit", 15),
                     parametro("shift_scale_rotate", "rotate_limit", 15),
                 ),
                 p=parametro("shift_scale_rotate", "probabilidade", 0.5),
+            )
+        )
+
+    if ativo("gaussian_blur"):
+        transformacoes.append(
+            A.GaussianBlur(
+                blur_limit=tuple(parametro("gaussian_blur", "kernel_size", (25, 25))),
+                sigma_limit=tuple(parametro("gaussian_blur", "sigma", (0.001, 2.0))),
+                p=parametro("gaussian_blur", "probabilidade", 0.5),
+            )
+        )
+
+    if ativo("color_jitter"):
+        transformacoes.append(
+            A.ColorJitter(
+                brightness=parametro("color_jitter", "brilho", 0.125),
+                contrast=parametro("color_jitter", "contraste", 0.5),
+                saturation=parametro("color_jitter", "saturacao", 0.5),
+                hue=parametro("color_jitter", "matiz", 0.05),
+                p=parametro("color_jitter", "probabilidade", 0.5),
             )
         )
 
