@@ -49,7 +49,7 @@ class PipelineOpenCV:
     def __init__(self, configuracao: ConfiguracaoPreProcessamento) -> None:
         self.config = configuracao
 
-    def processar(self, imagem: np.ndarray) -> np.ndarray:
+    def processar(self, imagem: np.ndarray, aplicar_normalizacao: bool = True) -> np.ndarray:
         """Aplica todas as etapas ativas do pipeline sobre uma imagem.
 
         Args:
@@ -88,10 +88,16 @@ class PipelineOpenCV:
         if self.config.esta_ativo("conversao_espaco_cor"):
             resultado = self._etapa_conversao_espaco_cor(resultado)
 
-        if self.config.esta_ativo("normalizacao"):
+        if aplicar_normalizacao and self.config.esta_ativo("normalizacao"):
             resultado = self._etapa_normalizacao(resultado)
 
         return resultado
+
+    def normalizar(self, imagem: np.ndarray) -> np.ndarray:
+        """Aplica a normalização configurada, preservando os valores float."""
+        if not self.config.esta_ativo("normalizacao"):
+            return imagem
+        return self._etapa_normalizacao(imagem)
 
     # ------------------------------------------------------------------
     # Etapas individuais de pré-processamento

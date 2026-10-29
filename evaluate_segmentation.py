@@ -143,12 +143,13 @@ def filtrar_imagens_com_mascara(
     return imagens_com_mascara
 
 
-def construir_modelo(arquitetura: str, tamanho_base: int = 64, profundidade: int = 4, batch_size: int = 1) -> torch.nn.Module:
+def construir_modelo(arquitetura: str, tamanho_base: int = 64, profundidade: int = 4, batch_size: int = 1,
+                     groupnorm_decoder: bool = True) -> torch.nn.Module:
     if arquitetura == "unet":
         modelo: torch.nn.Module = UNet(3, 1, tamanho_base, profundidade)
     elif arquitetura == "unet_resnet50":
         modelo = UNetResNet50(canais_saida=1, pretrained=False, fine_tuning=True,
-                              groupnorm_decoder=batch_size <= 2, congelar_batchnorm_encoder=batch_size <= 2)
+                              groupnorm_decoder=groupnorm_decoder, congelar_batchnorm_encoder=batch_size <= 2)
         # O treinamento mantém BatchNorm no encoder ResNet50. Para batches
         # pequenos, apenas o decoder é convertido para GroupNorm pelo construtor.
         return modelo
@@ -168,9 +169,19 @@ def carregar_modelo(
     caminho = Path(caminho_pesos)
     if not caminho.is_file():
         raise FileNotFoundError(f"Arquivo de pesos inexistente: {caminho}")
-    modelo = construir_modelo(arquitetura, tamanho_base, profundidade, batch_size)
     checkpoint = torch.load(caminho, map_location=dispositivo)
     estado = checkpoint.get("modelo_state_dict", checkpoint) if isinstance(checkpoint, dict) else checkpoint
+    # O tipo de normalização do decoder depende do batch de treinamento.
+    # BatchNorm possui running_mean/var no state_dict; GroupNorm não.
+    usa_batchnorm_decoder = any(
+        key.startswith(("decoder4.", "decoder3.", "decoder2.", "decoder1.", "conv_final."))
+        and key.endswith("running_mean")
+        for key in estado
+    ) if isinstance(estado, dict) else False
+    modelo = construir_modelo(
+        arquitetura, tamanho_base, profundidade, batch_size,
+        groupnorm_decoder=not usa_batchnorm_decoder,
+    )
     try:
         modelo.load_state_dict(estado)
     except (RuntimeError, TypeError, AttributeError) as erro:

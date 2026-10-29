@@ -70,19 +70,25 @@ class WoundDataset(Dataset):
         imagem, mascara = self._carregar_par(indice)
 
         if self.pipeline_opencv is not None:
-            imagem = self.pipeline_opencv.processar(imagem)
-            # Garante uint8 para compatibilidade com Albumentations quando a
-            # normalização OpenCV ainda não foi aplicada em float.
-            if imagem.dtype != np.uint8:
-                imagem = np.clip((imagem * 255.0) if imagem.max() <= 1.0 else imagem, 0, 255).astype(np.uint8)
+            # Augmentações esperam imagem em escala de pixels. Normalizar antes
+            # e converter de volta para uint8 destruiria os valores (z-scores).
+            imagem = self.pipeline_opencv.processar(imagem, aplicar_normalizacao=False)
         else:
             imagem = cv2.resize(imagem, (self.tamanho_imagem, self.tamanho_imagem))
+
+        # O resize do pipeline OpenCV é opcional. Ainda assim, imagem e máscara
+        # precisam ter o tamanho da entrada da rede antes do Albumentations.
+        if imagem.shape[:2] != (self.tamanho_imagem, self.tamanho_imagem):
+            imagem = cv2.resize(imagem, (self.tamanho_imagem, self.tamanho_imagem), interpolation=cv2.INTER_LINEAR)
 
         mascara = cv2.resize(mascara, (self.tamanho_imagem, self.tamanho_imagem), interpolation=cv2.INTER_NEAREST)
 
         if self.transformacoes is not None:
             aumentado = self.transformacoes(image=imagem, mask=mascara)
             imagem, mascara = aumentado["image"], aumentado["mask"]
+
+        if self.pipeline_opencv is not None:
+            imagem = self.pipeline_opencv.normalizar(imagem)
 
         if self.normalizar_imagenet:
             # OpenCV/Albumentations operam em BGR. Converter e normalizar uma vez,

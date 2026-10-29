@@ -297,10 +297,10 @@ função de perda. O treinamento usa `caminhos.imagens_treino` e
 
 ```bash
 # Treinar todas as quatro pipelines sequencialmente
-python train.py --config configs/train_config.yaml
+python3 train.py --config configs/train_config.yaml
 
 # Treinar apenas uma pipeline específica
-python train.py --config configs/train_config.yaml --pipeline unet_resnet50
+python3 train.py --config configs/train_config.yaml --pipeline unet_resnet50_opencv
 
 # Retomar uma pipeline a partir do último checkpoint salvo
 python train.py --config configs/train_config.yaml --pipeline unet_resnet50 --retomar
@@ -393,7 +393,7 @@ Cada avaliação gera:
 Depois de avaliar individualmente os modelos, execute:
 
 ```bash
-python evaluate.py --config configs/train_config.yaml
+python3 evaluate.py --config configs/train_config.yaml
 ```
 
 Esse comando avalia todos os checkpoints ativos em `data/validacao/` usando o

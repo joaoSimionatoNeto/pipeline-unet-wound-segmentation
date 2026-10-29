@@ -13,6 +13,15 @@ caminhos:
   resultados: results
   imagens_teste: data/particoes/grid_resnet50/test/images
   mascaras_teste: data/particoes/grid_resnet50/test/masks
+dados:
+  extensao_imagem: null
+  extensao_mascara: ".png"
+  proporcao_treino: 0.70
+  proporcao_validacao: 0.15
+  proporcao_teste: 0.15
+  estratificar_por: null       # ex: "tipo_ferida" (coluna de um CSV de metadados)
+  arquivo_metadados: null      # CSV opcional com colunas [arquivo, tipo_ferida, tom_pele]
+
 pipelines:
   unet_resnet50:
     ativo: true
@@ -22,20 +31,20 @@ pipelines:
     usar_opencv: false
     diretorio_experimento: experiments/unet_resnet50
   unet:
-    ativo: false
+    ativo: true
     canais_base: 64
     profundidade: 4
     usar_opencv: false
     diretorio_experimento: experiments/unet
   unet_resnet50_opencv:
-    ativo: false
+    ativo: true
     encoder: resnet50
     encoder_pretrained: true
     fine_tuning: true
     usar_opencv: true
     diretorio_experimento: experiments/unet_resnet50_opencv
   unet_opencv:
-    ativo: false
+    ativo: true
     canais_base: 64
     profundidade: 4
     usar_opencv: true
@@ -55,7 +64,7 @@ pre_processamento_opencv:
     - 8
     - 8
   remocao_ruido_gaussiano:
-    ativo: true
+    ativo: false
     kernel_size: 5
   filtro_mediano:
     ativo: true
@@ -80,7 +89,7 @@ pre_processamento_opencv:
   sharpening:
     ativo: false
   correcao_iluminacao:
-    ativo: true
+    ativo: false
 data_augmentation:
   ativo: true
   aplicar_em_todas_imagens_treino: true
@@ -167,7 +176,7 @@ modelo:
   imagenet_normalizacao: true
   tversky_balanceado_ativo: false
 avaliacao:
-  limiar_binarizacao: 0.5
+  limiar_binarizacao: 0.1
   salvar_predicoes: true
   gerar_matriz_confusao: true
   gerar_graficos_comparativos: true
